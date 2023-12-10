@@ -6,22 +6,19 @@ import re
 import sys
 import time
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.keys import Keys
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-# Constantes
-XPATH_PESQUISA = (
-    '//*[@id="app"]/div/div/div[2]/div/div[2]/div[1]/label/div/div[1]/input'
-)
-XPATH_PRECO_ATUAL = '//*[@id="app"]/div/div/div[2]/div/div[2]/div[2]/div/div/div/div/div/table/tbody/tr[1]/td[3]/div/span'
+PRECO_MAX = 1003000700
 
 
-def main():
-    # Cadastro de itens
+def cli():
+    """Interface de cadastro de itens"""
     count = 0
     itens_monitorados = {}
-    print("--- CADASTRO DE MONITORAMENTO DE ITENS ---")
+    print("-- CADASTRO DE MONITORAMENTO DE ITENS --")
     while True:
         item = input(f"Item {count}: ")
         if item == "":
@@ -30,64 +27,63 @@ def main():
             count += 1
             item = item.title()
             preco_alerta = int(input("Preço a alertar: "))
-            itens_monitorados[item] = [preco_alerta, 1003000700, 0]
+            itens_monitorados[item] = [preco_alerta, PRECO_MAX, 0]
     DELAY = int(input("Delay entre sessões (segundos): "))
     LIMITE_AVISOS = int(input("Limite de avisos: "))
+    return itens_monitorados, DELAY, LIMITE_AVISOS
+
+
+def main():
+    """Função principal"""
+    itens_monitorados, DELAY, LIMITE_AVISOS = cli()
+    MAX_ESPERA = 10  # Tempo de espera máximo para carregar páginas e preços
+    XPATH_PRECO_ATUAL = '//*[@id="app"]/div/div/div[2]/div/div[2]/div[2]/div/div/div/div/div/table/tbody/tr[1]/td[3]/div/span'
 
     # Browser
-    nav = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-    sessao = 1
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")  # Navegador sem interface
+    nav = webdriver.Chrome(options=options)
     nav.get("https://ragnatales.com.br/market")
-    time.sleep(5)
+    sessao = 1
 
     # Loop de monitoramento
     while True:
-        if len(itens_monitorados) == 0:
+        if not itens_monitorados:
             print("Não há itens para monitorar.")
             time.sleep(4)
+            nav.quit()
             sys.exit(1)
 
-        print(f"----- SESSÃO DE PESQUISA Nº {sessao} -----")
+        print(f"------- SESSÃO DE PESQUISA Nº {sessao} -------")
         for item in itens_monitorados:
-            if itens_monitorados[item][2] == LIMITE_AVISOS:
+            if itens_monitorados[item][2] >= LIMITE_AVISOS:
                 itens_monitorados.pop(item)
                 print(f"Limite de avisos de {item} alcançado, item removido da lista.")
                 break
 
-            time.sleep(2)
             try:
-                nav.find_element(
-                    "xpath",
-                    XPATH_PESQUISA,
-                ).clear()
-
-                nav.find_element(
-                    "xpath",
-                    XPATH_PESQUISA,
-                ).send_keys(item)
-
-                nav.find_element(
-                    "xpath",
-                    XPATH_PESQUISA,
-                ).send_keys(Keys.ENTER)
+                pesquisa = WebDriverWait(nav, MAX_ESPERA).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "input"))
+                )
+                time.sleep(1)
+                pesquisa.clear()
+                pesquisa.send_keys(item)
+                pesquisa.send_keys(Keys.ENTER)
                 time.sleep(3)
             except Exception as e:
                 print("> Página não carregada, conexão instável.")
                 break
 
             try:
-                preco_atual = convert(
-                    nav.find_element(
-                        "xpath",
-                        XPATH_PRECO_ATUAL,
-                    ).text
+                preco_atual = WebDriverWait(nav, MAX_ESPERA).until(
+                    EC.presence_of_element_located((By.XPATH, XPATH_PRECO_ATUAL))
                 )
-                itens_monitorados[item][1] = preco_atual
+                itens_monitorados[item][1] = convert(preco_atual.text)
             except Exception as e:
                 print(f"> Nenhum registro encontrado do item {item}.")
-                itens_monitorados[item][1] = 1003000700
+                itens_monitorados[item][1] = PRECO_MAX
 
-            if itens_monitorados[item][1] != 1003000700:
+            if itens_monitorados[item][1] != PRECO_MAX:
                 print(
                     f"> {item} - Preço atual: {itens_monitorados[item][1]}z || Alerta: {itens_monitorados[item][0]}z"
                 )
@@ -98,13 +94,12 @@ def main():
                 else:
                     print(f"> Preço alerta do item {item} não alcançado.")
 
-        nav.refresh()
-        nav.implicitly_wait(DELAY)
         time.sleep(DELAY)
         sessao += 1
 
 
 def convert(preco_str):
+    """Converte zeny STR para INT"""
     numeros = re.findall(r"\d+", preco_str)
     num = "".join(numeros)
     return int(num)
