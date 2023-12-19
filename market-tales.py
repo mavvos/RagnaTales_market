@@ -1,6 +1,11 @@
 """Script para monitoramento de itens no market do RagnaTales.
-Essa é uma versão adaptada do script feito por maxweberps;
-Original: https://github.com/maxweberps/ragnatales_market
+        Desenvolvido por @mavvos no GitHub.
+
+Ideia original vem do script desenvolvido por @maxweberps,
+esta é uma versão adaptada e desenvolvida em cima da dele.
+
+Site oficial desse script:
+https://github.com/mavvos/RagnaTales_market
 """
 import re
 import sys
@@ -49,7 +54,7 @@ def main():
     # Loop de monitoramento
     while True:
         if not itens_monitorados:
-            print("Não há itens para monitorar.")
+            print("> Não há itens para monitorar.")
             time.sleep(4)
             nav.quit()
             sys.exit(1)
@@ -58,7 +63,9 @@ def main():
         for item in itens_monitorados:
             if itens_monitorados[item][2] >= LIMITE_AVISOS:
                 itens_monitorados.pop(item)
-                print(f"Limite de avisos de {item} alcançado, item removido da lista.")
+                print(
+                    f"> Limite de avisos de {item} alcançado, item removido da lista."
+                )
                 break
 
             try:
@@ -69,18 +76,43 @@ def main():
                 pesquisa.clear()
                 pesquisa.send_keys(item)
                 pesquisa.send_keys(Keys.ENTER)
-                time.sleep(3)
             except Exception as e:
                 print("> Página não carregada, conexão instável.")
                 break
 
             try:
+                # Caso único pra se certificar que o preço comparado é do item correto
+                XPATH_PRIMEIRO = '//*[@id="app"]/div/div/div[2]/div/div[2]/div[2]/div/div/div/div/div/table/tbody/tr[1]/td[1]/div/div/div/div/div[2]/span[1]'
+                primeiro_item = WebDriverWait(nav, MAX_ESPERA).until(
+                    EC.presence_of_element_located(
+                        (
+                            By.XPATH,
+                            XPATH_PRIMEIRO,
+                        )
+                    )
+                )
+                primeiro_item = (primeiro_item.text).title()
+                count = 0
+                while item not in primeiro_item:
+                    if count >= 5:
+                        raise Exception
+                    time.sleep(5)
+                    primeiro_item = nav.find_element(
+                        By.XPATH,
+                        XPATH_PRIMEIRO,
+                    ).text
+                    primeiro_item = primeiro_item.title()
+                    count += 1
+
                 preco_atual = WebDriverWait(nav, MAX_ESPERA).until(
                     EC.presence_of_element_located((By.XPATH, XPATH_PRECO_ATUAL))
                 )
                 itens_monitorados[item][1] = convert(preco_atual.text)
+
             except Exception as e:
-                print(f"> Nenhum registro encontrado do item {item}.")
+                print(
+                    f"> Nenhum registro encontrado do item {item}. Conexão instável ou item indisponível..."
+                )
                 itens_monitorados[item][1] = PRECO_MAX
 
             if itens_monitorados[item][1] != PRECO_MAX:
@@ -95,6 +127,7 @@ def main():
                     print(f"> Preço alerta do item {item} não alcançado.")
 
         time.sleep(DELAY)
+        nav.refresh()
         sessao += 1
 
 
