@@ -4,7 +4,7 @@
 Ideia original vem do script desenvolvido por @maxweberps,
 esta é uma versão adaptada e desenvolvida em cima da dele.
 
-Site oficial desse script:
+Site oficial:
 https://github.com/mavvos/RagnaTales_market
 """
 import re
@@ -31,7 +31,7 @@ def cli():
         else:
             count += 1
             item = item.title()
-            preco_alerta = int(input("Preço a alertar: "))
+            preco_alerta = int(input("Preço alerta: "))
             itens_monitorados[item] = [preco_alerta, PRECO_MAX, 0]
     DELAY = int(input("Delay entre sessões (segundos): "))
     LIMITE_AVISOS = int(input("Limite de avisos: "))
@@ -53,7 +53,7 @@ def main():
 
     # Loop de monitoramento
     while True:
-        if not itens_monitorados:
+        if not itens_monitorados:  # Caso todos alertas alcançados
             print("> Não há itens para monitorar.")
             time.sleep(4)
             nav.quit()
@@ -81,7 +81,8 @@ def main():
                 break
 
             try:
-                # Caso único pra se certificar que o preço comparado é do item correto
+                # Caso único só para se certificar que o preço que está sendo comparado é do item correto,
+                # já que as vezes a p#%%@ da água benta carregava e f*&!@ todo monitoramento.
                 XPATH_PRIMEIRO = '//*[@id="app"]/div/div/div[2]/div/div[2]/div[2]/div/div/div/div/div/table/tbody/tr[1]/td[1]/div/div/div/div/div[2]/span[1]'
                 primeiro_item = WebDriverWait(nav, MAX_ESPERA).until(
                     EC.presence_of_element_located(
@@ -91,8 +92,9 @@ def main():
                         )
                     )
                 )
-                primeiro_item = (primeiro_item.text).title()
+                primeiro_item = (primeiro_item.text).title()  # Precisa ser title
                 count = 0
+                # Caso 1º item na página não seja o pesquisado, procura 5 vezes então joga uma Exception
                 while item not in primeiro_item:
                     if count >= 5:
                         raise Exception
@@ -113,6 +115,8 @@ def main():
                 print(
                     f"> Nenhum registro encontrado do item {item}. Conexão instável ou item indisponível..."
                 )
+                # As vezes o preço do item anterior ainda está carregado,
+                # pra evitar que o item atual seja comparado com o preço do anterior, ele só é definido de novo.
                 itens_monitorados[item][1] = PRECO_MAX
 
             if itens_monitorados[item][1] != PRECO_MAX:
