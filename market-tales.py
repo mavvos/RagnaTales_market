@@ -2,9 +2,9 @@
         Desenvolvido por @mavvos no GitHub.
 
 Ideia original vem do script desenvolvido por @maxweberps,
-esta é uma versão adaptada e desenvolvida em cima da dele.
+esta é uma versão adaptada e desenvolvida com base na dele.
 
-Site oficial:
+
 https://github.com/mavvos/RagnaTales_market
 """
 import re
@@ -82,7 +82,7 @@ def main():
 
             try:
                 # Caso único só para se certificar que o preço que está sendo comparado é do item correto,
-                # já que as vezes a p#%%@ da água benta carregava e f*&!@ todo monitoramento.
+                # já que por padrão abrir o site do comércio tende a carregar o preço da água benta.
                 XPATH_PRIMEIRO = '//*[@id="app"]/div/div/div[2]/div/div[2]/div[2]/div/div/div/div/div/table/tbody/tr[1]/td[1]/div/div/div/div/div[2]/span[1]'
                 primeiro_item = WebDriverWait(nav, MAX_ESPERA).until(
                     EC.presence_of_element_located(
@@ -92,9 +92,8 @@ def main():
                         )
                     )
                 )
-                primeiro_item = (primeiro_item.text).title()  # Precisa ser title
+                primeiro_item = (primeiro_item.text).title()
                 count = 0
-                # Caso 1º item na página não seja o pesquisado, procura 5 vezes então joga uma Exception
                 while item not in primeiro_item:
                     if count >= 5:
                         raise Exception
@@ -115,8 +114,6 @@ def main():
                 print(
                     f"> Nenhum registro encontrado do item {item}. Conexão instável ou item indisponível..."
                 )
-                # As vezes o preço do item anterior ainda está carregado,
-                # pra evitar que o item atual seja comparado com o preço do anterior, ele só é definido de novo.
                 itens_monitorados[item][1] = PRECO_MAX
 
             if itens_monitorados[item][1] != PRECO_MAX:
